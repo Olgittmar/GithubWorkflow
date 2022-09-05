@@ -1,0 +1,48 @@
+name: dev_try_build_ubuntu
+on:
+  push:
+    branches:
+      - 'dev'
+jobs:
+  build-project:
+    runs-on: ubuntu-latest
+    if: contains(${{github.event.head_commit.message}}, '\[build_check\]')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Get CMake
+        uses: lukka/get-cmake@latest
+      - name: Verify CMake version
+        run: cmake --version
+      - name: install Ninja
+        run: sudo apt-get install -y ninja-build
+      - name: check ninja path
+        run: which ninja
+      - name: Install LLVM
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "14.0"
+      - name: Get Conan
+        uses: turtlebrowser/get-conan@main
+      - name: Get CppCheck
+        run: sudo apt-get install -y cppcheck
+      - name: Get clang-tidy
+        run: sudo apt-get install -y clang-tidy
+      - name: Get clang-format
+        run: sudo apt-get install -y clang-format
+      - run: mkdir ${{github.workspace}}/build
+      - run: mkdir ${{github.workspace}}/install
+      - name: Install dependencies
+        run: conan install ${{github.workspace}}/conan -if=${{github.workspace}}/build --build=missing -pr=${{github.workspace}}/conan/profile.txt -pr:b=${{github.workspace}}/conan/profile.txt
+      - name: setup build targets
+        run: cmake ${{github.workspace}} -G Ninja -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/install -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE -DCMAKE_BUILD_TYPE=Debug -S${{github.workspace}} -B${{github.workspace}}/build
+      - name: run clang-format
+        run: ninja -C ${{github.workspace}}/build format_project
+      - name: run clang-tidy
+        run: ninja -C ${{github.workspace}}/build run_clang_tidy
+      - name: run CppCheck
+        run: ninja -C ${{github.workspace}}/build run_cppcheck
+      - name: run tests
+        run: ninja -C ${{github.workspace}}/build run_tests
+      - name: attempt build
+        run: ninja -C ${{github.workspace}}/build install

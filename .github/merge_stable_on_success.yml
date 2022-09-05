@@ -1,0 +1,34 @@
+name: on_stable_build_success
+on:
+  workflow_run:
+    workflows:
+      - 'stable_try_build_ubuntu'
+    types:
+      - 'completed'
+    branches:
+      - 'stable'
+
+jobs:
+  on-success:
+    runs-on: ubuntu-latest
+    if: ${{github.event.workflow_run.conclusion == 'success'}}
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Attempt merge
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git checkout main
+          git fetch
+          git rebase --no-ff origin/stable
+          git push
+  on-failure:
+    runs-on: ubuntu-latest
+    if: ${{github.event.workflow_run.conclusion == 'failure'}}
+    steps:
+      - name: Will not attempt to merge automatically
+        run: echo "Nothing to do."
