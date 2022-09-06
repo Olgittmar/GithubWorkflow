@@ -1,22 +1,19 @@
-name: on_stable_build_success
+name: attempt_merge_stable_to_main
 on:
-  workflow_run:
-    workflows:
-      - 'stable_try_build_ubuntu'
-    types:
-      - 'completed'
-    branches:
-      - 'stable'
+  workflow_call:
+    inputs:
+    secrets:
+      envPAT:
+        required: true
 
 jobs:
-  on-success:
+  attempt_merge:
     runs-on: ubuntu-latest
-    if: ${{github.event.workflow_run.conclusion == 'success'}}
     steps:
       - name: Git checkout
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.envPAT }}
           fetch-depth: 0
       - name: Attempt merge
         run: |
@@ -26,9 +23,3 @@ jobs:
           git fetch
           git rebase --no-ff origin/stable
           git push
-  on-failure:
-    runs-on: ubuntu-latest
-    if: ${{github.event.workflow_run.conclusion == 'failure'}}
-    steps:
-      - name: Will not attempt to merge automatically
-        run: echo "Nothing to do."
